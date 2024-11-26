@@ -52,4 +52,12 @@ scale1,0.030245527,Multiplicative scaling coefficient
 scale2,-10993.704,Additive scaling coefficient
 fosslim,6000,Maximum cumulative extraction fossil fuels (GtC)
 dmiulim,0.2,Limit on change in miu
+srm_frac,1,SRM fraction
+srm_decay,0.9,SRM decay rate
+srm_trg,1.5,SRM target
+srm_end,50,SRM end year
+scost,100,SRM cost
+alpha_so2,10,SRM alpha parameter
+beta_so2,8,SRM beta parameter
+gamma_so2,0.5,SRM gamma parameter
 logfile,0,Dump solver log?

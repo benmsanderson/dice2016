@@ -175,8 +175,17 @@ def dice2016(**kwargs):
 
     def cpc_bounds(model,t):
         return (0.01, np.inf)
+    
+    def is_bounds(model,t):
+ 
+        return (0.00, np.inf)   
 
-
+    def srm_bounds(model,t):
+        return (0.0, np.inf) 
+    
+    def sc_bounds(model,t):
+        return (0.0, np.inf)   
+     
     def cca_bounds(model, t):
         if t == 0:
             return (400, 400)
@@ -235,6 +244,9 @@ def dice2016(**kwargs):
     model.CPRICE = pe.Var(model.time_periods, domain=pe.Reals)
     model.CEMUTOTPER = pe.Var(model.time_periods, domain=pe.Reals)
     model.UTILITY = pe.Var(domain=pe.Reals)
+    model.IS = pe.Var(model.time_periods, domain=pe.NonNegativeReals,bounds=is_bounds, initialize=0.00)
+    model.SRM = pe.Var(model.time_periods, domain=pe.NonNegativeReals,bounds=srm_bounds, initialize=0.)
+    model.SRMCOST = pe.Var(model.time_periods, domain=pe.NonNegativeReals,bounds=sc_bounds,  initialize=0.)
 
     # Objective function
     def obj_rule(model):
@@ -261,9 +273,34 @@ def dice2016(**kwargs):
     def ccatoteq(model, t):
         return (model.CCATOT[t] == model.CCA[t] + kwargs['cumetree'][t])
     model.ccatoteq = pe.Constraint(model.time_periods, rule=ccatoteq)
+    def iseq(model, t):
+        if t == 0:
+            return pe.Constraint.Skip
+        else:
+            if t < kwargs['srm_end']:
+                return (model.IS[t] == model.IS[t-1] * kwargs['srm_decay'] +  (model.TATM[t-1] - kwargs['srm_trg']) * kwargs['srm_frac'])
+            else:
+                return (model.IS[t] == model.IS[t-1] * kwargs['srm_decay'])
+    model.iseq = pe.Constraint(model.time_periods, rule=iseq)
+
+    def srmeq(model, t):
+        if t == 0:
+            return pe.Constraint.Skip
+        else:
+            #return (model.SRM[t] == kwargs['alpha_so2'] * pe.exp(-(kwargs['beta_so2'] / model.IS[t]) ** kwargs['gamma_so2']))
+            return (model.SRM[t] == kwargs['alpha_so2']/15 * (model.IS[t]/kwargs['beta_so2']) ** 2)
+    model.srmeq = pe.Constraint(model.time_periods, rule=srmeq)
+
+    def srmcosteq(model, t):
+        if t == 0:
+            return pe.Constraint.Skip
+        else:
+            return (model.SRMCOST[t] == kwargs['scost'] * model.IS[t])
+    
+    model.srmcosteq = pe.Constraint(model.time_periods, rule=srmcosteq)
 
     def force(model,t): 
-        return (model.FORC[t] == kwargs['fco22x'] * (pe.log10(model.MAT[t]/588.000)/pe.log10(2)) + kwargs['forcoth'][t])
+        return (model.FORC[t] == kwargs['fco22x'] * (pe.log10(model.MAT[t]/588.000)/pe.log10(2)) + kwargs['forcoth'][t] - model.SRM[t])
     model.force = pe.Constraint(model.time_periods, rule=force)
 
     def damfraceq(model,t):
@@ -344,7 +381,7 @@ def dice2016(**kwargs):
     model.yneteq = pe.Constraint(model.time_periods, rule=yneteq)
 
     def yy(model,t):
-        return (model.Y[t] == model.YNET[t] - model.ABATECOST[t])
+        return (model.Y[t] == model.YNET[t] - model.ABATECOST[t] - model.SRMCOST[t])
     model.yy = pe.Constraint(model.time_periods, rule=yy)
 
     def cc(model,t):
@@ -423,7 +460,6 @@ if __name__ == "__main__":
     params['forcoth'] = get_forcoth(params['fex0'],params['fex1'],params['nt'])
     params['optlrsav'] = get_optlrsav(params['dk'], params['elasmu'], params['prstp'], params['gama'])
     params['cpricebase'] = get_cpricebase(params['cprice0'], params['gcprice'], params['tstep'], params['nt'])
-
     # Call the model run function with parameters defined
     model = dice2016(**params)
 
@@ -483,6 +519,9 @@ if __name__ == "__main__":
     data_out[:, 34] = pe.value(model.ML[:])
     data_out[:, 35] = pe.value(atfrac)
     data_out[:, 36] = pe.value(atfrac2010)
+    data_out[:, 37] = pe.value(model.IS[:])
+    data_out[:, 38] = pe.value(model.SRM[:])
+    data_out[:, 39] = pe.value(model.SRMCOST[:])
 
     varnames = [
         "Year",
@@ -521,7 +560,10 @@ if __name__ == "__main__":
         "Atmospheric concentrations upper", 
         "Atmospheric concentrations lower", 
         "Atmospheric fraction since 1850" , 
-        "Atmospheric fraction since 2010"
+        "Atmospheric fraction since 2010",
+        "SRM Intensity",
+        "SRM Forcing",
+        "SRM Cost"
     ]
 
     df_out = pd.DataFrame(data=data_out.T, index=varnames, columns=np.arange(params['nt'], dtype=int))

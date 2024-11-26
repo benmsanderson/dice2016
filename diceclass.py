@@ -34,7 +34,7 @@ class DICE2016Model:
         p['forcoth'] = get_forcoth(p['fex0'], p['fex1'], p['nt'])
         p['optlrsav'] = get_optlrsav(p['dk'], p['elasmu'], p['prstp'], p['gama'])
         p['cpricebase'] = get_cpricebase(p['cprice0'], p['gcprice'], p['tstep'], p['nt'])
-
+        
     def run_model(self):
         self.model = dice2016(**self.params)
         self.results = self._extract_results()
@@ -76,7 +76,9 @@ class DICE2016Model:
         results_df['CCA'] = np.array([pe.value(self.model.CCA[t]) for t in self.model.time_periods])
         results_df['MU'] = np.array([pe.value(self.model.MU[t]) for t in self.model.time_periods])
         results_df['ML'] = np.array([pe.value(self.model.ML[t]) for t in self.model.time_periods])
-        
+        results_df['IS'] = np.array([pe.value(self.model.IS[t]) for t in self.model.time_periods])
+        results_df['SRM'] = np.array([pe.value(self.model.SRM[t]) for t in self.model.time_periods])
+        results_df['SRMCOST'] = np.array([pe.value(self.model.SRMCOST[t]) for t in self.model.time_periods])
         #results = results_df.to_dict(orient='list')
         #results['UTILITY'] = pe.value(self.model.UTILITY)
         return results_df
